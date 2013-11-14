@@ -34,7 +34,7 @@ module JSONPresentable
 
     def initialize(item, mapping: nil, controller: nil)
       @item = item
-      @mapping = mapping.to_s
+      with_map(mapping || controller && controller.class.to_s.sub(/Controller$/, '').underscore)
       @controller = controller
     end
 
@@ -45,6 +45,11 @@ module JSONPresentable
 
     def json_root
       item.class.name.underscore
+    end
+
+    def with_map(mapping)
+      @mapping = mapping.to_s
+      self
     end
 
     def errors

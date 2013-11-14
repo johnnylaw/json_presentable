@@ -90,12 +90,15 @@ describe JSONPresentable::ItemPresenter do
       end
 
       before :all do
+        class RandomResourcesController
+        end
+
         class PagePresenter < JSONPresentable::ItemPresenter
           mapping :display_only do
             page.as_json.slice :title, :content
           end
 
-          mapping :pages, :admin do
+          mapping :pages, :random_resources do
             page.as_json.merge(user: {
               username: 'johnnylaw',
               profile_image: 'http://cloudfront.com/path/to/image.png'
@@ -126,8 +129,20 @@ describe JSONPresentable::ItemPresenter do
           end
 
           context 'when it is the other' do
-            let(:mapping) { :admin }
+            let(:mapping) { :random_resources }
             it { should eq expected_result }
+          end
+
+          describe '#with_map' do
+            subject { presenter.with_map(:pages) }
+            let(:presenter) { PagePresenter.new(page) }
+            it { should eq presenter }
+            its(:as_json) { should eq expected_result }
+          end
+
+          context 'when no mapping is given given controller has a mapping' do
+            subject { PagePresenter.new page, controller: RandomResourcesController.new }
+            its(:as_json) { should eq expected_result }
           end
         end
       end
