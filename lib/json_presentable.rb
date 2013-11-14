@@ -1,0 +1,2 @@
+module JsonPresentable
+end
