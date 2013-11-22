@@ -29,11 +29,11 @@ end
       @code_snippets ||= []
     end
 
-    def attribute(arg)
+    def property(arg)
       if arg.is_a?(Hash) && arg.size == 1
         code_snippets << "({#{arg.keys.first}: #{@root_name}.#{arg.values.first}})"
       elsif arg.is_a?(String) || arg.is_a?(Symbol)
-        attributes arg
+        code_snippets << "({#{arg}: #{@root_name}.#{arg}})"
       else
         raise ArgumentError, "'attribute' called with bad argument"
       end

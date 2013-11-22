@@ -22,17 +22,17 @@ describe JSONPresentable::PresenterMethodMaker do
       end
     end
 
-    describe '#attribute' do
+    describe '#property' do
       context 'when called with a symbol argument' do
-        let(:block) { proc { attribute :permalink } }
+        let(:block) { proc { property :permalink } }
 
         it 'presents that attribute of the root item' do
-          should eq "def json_presentable_default\n  (page.as_json(only: [:permalink]))\nend\n"
+          should eq "def json_presentable_default\n  ({permalink: page.permalink})\nend\n"
         end
       end
 
       context 'when called with a single-key hash argument' do
-        let(:block) { proc { attribute permalink: 'humanize(permalink)' } }
+        let(:block) { proc { property permalink: 'humanize(permalink)' } }
 
         it 'presents that attribute of the root item, getting the value by calling the method given in the hash' do
           should eq "def json_presentable_default\n  ({permalink: page.humanize(permalink)})\nend\n"
@@ -40,7 +40,7 @@ describe JSONPresentable::PresenterMethodMaker do
       end
 
       context 'when called with a multiple-key hash argument (nonsense to API)' do
-        let(:block) { proc { attribute permalink: :something, user_id: :something } }
+        let(:block) { proc { property permalink: :something, user_id: :something } }
         subject { -> { JSONPresentable::PresenterMethodMaker.new('page', :default, &block).print } }
         it { should raise_error(ArgumentError, "'attribute' called with bad argument") }
       end
@@ -76,7 +76,7 @@ describe JSONPresentable::PresenterMethodMaker do
           attributes :id, :title
           association :thing do
             attributes :id, :height
-            attribute permalink: 'humanize(permalink)'
+            property permalink: 'humanize(permalink)'
           end
         end
       end
