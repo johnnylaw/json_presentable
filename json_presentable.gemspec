@@ -11,7 +11,8 @@ Gem::Specification.new do |s|
   s.email       = ["johnonrails@gmail.com"]
   s.homepage    = "http://github.com/johnnylaw/json_presentable"
   s.summary     = "For presenting JSON from controllers in a Rails app"
-  s.description = "For presenting JSON from controllers in a Rails app"
+  s.description = "Presenters that make it easy for you to display your resources as JSON. An easy API allows you to configure the presentation of each resource in different contexts."
+  s.license     = 'MIT'
 
   s.files = Dir["{app,config,db,lib}/**/*", "MIT-LICENSE", "Rakefile", "README.rdoc"]
 
