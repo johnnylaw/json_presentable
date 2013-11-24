@@ -1,7 +1,7 @@
 module JSONPresentable
   class PresenterMethodMaker
-    def initialize(root_name, method_suffix = nil, errors: nil, url: false, &block)
-      @root_name = root_name
+    def initialize(root, method_suffix = nil, errors: nil, url: false, &block)
+      @root = root
       @method_suffix = method_suffix
       @block = block
       @errors = errors
@@ -14,6 +14,10 @@ module JSONPresentable
     end
 
     private
+
+    def root_name
+      @root.sub /^.*\./, ''
+    end
 
     def enclose_code(code)
       <<-EOS
@@ -33,11 +37,11 @@ end
 
     def errors_code_snippet
       if @errors.nil?
-        "(#{@root_name}.respond_to?(:errors) ? {errors: #{@root_name}.errors.as_json} : {})"
+        "(#{@root}.respond_to?(:errors) ? {errors: #{@root}.errors.as_json} : {})"
       elsif @errors.is_a?(String) || @errors.is_a?(Symbol)
         "({errors: page.#{@errors}.as_json})"
       elsif @errors
-        "({errors: #{@root_name}.errors.as_json})"
+        "({errors: #{@root}.errors.as_json})"
       end
     end
 
@@ -45,30 +49,38 @@ end
       if @url.is_a?(String)|| @url.is_a?(Symbol)
         "({url: controller.#{@url}(page)})"
       elsif @url
-        "({url: controller.url_for(#{@root_name})})"
+        "({url: controller.url_for(#{@root})})"
       end
     end
 
     def property(arg)
       if arg.is_a?(Hash) && arg.size == 1
-        code_snippets << "({#{arg.keys.first}: #{@root_name}.#{arg.values.first}})"
+        code_snippets << "({#{arg.keys.first}: #{@root}.#{arg.values.first}})"
       elsif arg.is_a?(String) || arg.is_a?(Symbol)
-        code_snippets << "({#{arg}: #{@root_name}.#{arg}})"
+        code_snippets << "({#{arg}: #{@root}.#{arg}})"
       else
         raise ArgumentError, "'attribute' called with bad argument"
       end
     end
 
     def attributes(*args)
-      code_snippets << "(#{@root_name}.as_json#{options_for_only(args)})"
+      code_snippets << "(#{@root}.as_json#{options_for_only(args)})"
+    end
+
+    def url_for(path_only: false, root: false, namespace: false)
+      path_or_url = path_only ? 'path' : 'url'
+      root ||= path_or_url
+      prefix = namespace ? "#{namespace}_" : ''
+      method = "#{prefix}#{root_name}_#{path_or_url}"
+      code_snippets << "({#{root}: controller.#{method}(#{@root})})"
     end
 
     def association(assoc_root_name, errors: nil, url: false, &block)
-      deep_root_name = "#{@root_name}.#{assoc_root_name}"
+      deep_root_name = "#{@root}.#{assoc_root_name}"
       if block_given?
         code_snippets << "({#{assoc_root_name}: #{PresenterMethodMaker.new(deep_root_name, errors: errors, url: url, &block).print(strip_enclosure: true)}})"
       else
-        code_snippets << "({#{assoc_root_name}: #{@root_name}.#{assoc_root_name}.as_json})" + (url ? ".merge({url: controller.url_for(#{@root_name}.#{assoc_root_name})})" : '')
+        code_snippets << "({#{assoc_root_name}: #{@root}.#{assoc_root_name}.as_json})" + (url ? ".merge({url: controller.url_for(#{@root}.#{assoc_root_name})})" : '')
       end
     end
 
