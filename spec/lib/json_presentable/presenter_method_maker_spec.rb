@@ -23,6 +23,73 @@ describe JSONPresentable::PresenterMethodMaker do
         end
       end
 
+      describe '#not_attributes' do
+        context 'when called with arguments' do
+          let(:block) { proc { not_attributes :id, :username } }
+
+          it 'presents all but the attributes that are given' do
+            should eq "def json_presentable_default\n  (page.as_json(except: [:id, :username]))\nend\n"
+          end
+        end
+
+        context 'when called WITHOUT arguments' do
+          let(:block) { proc { not_attributes } }
+          subject { -> { JSONPresentable::PresenterMethodMaker.new('page', :default, &block).print } }
+
+          it { should raise_error(ArgumentError, "'not_attributes' called with no arguments") }
+        end
+      end
+
+      describe '#errors' do
+        context 'when called without options' do
+          let(:block) { proc { errors } }
+
+          it 'presents errors' do
+            should eq "def json_presentable_default\n  ({errors: page.errors.as_json(full_messages: false)})\nend\n"
+          end
+        end
+
+        context 'when called with (full_messages: true)' do
+          let(:block) { proc { errors full_messages: true } }
+
+          it 'presents errors with full_messages' do
+            should eq "def json_presentable_default\n  ({errors: page.errors.as_json(full_messages: true)})\nend\n"
+          end
+        end
+
+        context 'when called with :root option' do
+          let(:block) { proc { errors root: :shit_ton_of_errors } }
+
+          it 'presents errors with given root' do
+            should eq "def json_presentable_default\n  ({shit_ton_of_errors: page.errors.as_json(full_messages: false)})\nend\n"
+          end
+        end
+
+        context 'when called with :only option (even if the :except option is set)' do
+          let(:block) { proc { errors only: [:title, :content], except: [:nonsense] } }
+
+          it 'presents only errors on fields given' do
+            should eq "def json_presentable_default\n  ({errors: page.errors.as_json(full_messages: false).select {|k,v| [:title, :content].include?(k.to_sym)}})\nend\n"
+          end
+        end
+
+        context 'when called with :except option' do
+          let(:block) { proc { errors except: :title } }
+
+          it 'presents errors except on fields given' do
+            should eq "def json_presentable_default\n  ({errors: page.errors.as_json(full_messages: false).reject {|k,v| [:title].include?(k.to_sym)}})\nend\n"
+          end
+        end
+
+        context 'when called with :method option' do
+          let(:block) { proc { errors method: 'some_error_method(fun: true)' } }
+
+          it 'presents errors using the method call specified' do
+            should eq "def json_presentable_default\n  ({errors: page.some_error_method(fun: true).as_json(full_messages: false)})\nend\n"
+          end
+        end
+      end
+
       describe '#url_for' do
         context 'when called without options' do
           let(:block) { proc { url_for } }
@@ -32,8 +99,8 @@ describe JSONPresentable::PresenterMethodMaker do
           end
         end
 
-        context 'when called with (path_only: true) option' do
-          let(:block) { proc { url_for path_only: true } }
+        context 'when called with (only_path: true) option' do
+          let(:block) { proc { url_for only_path: true } }
 
           it 'presents path' do
             should eq "def json_presentable_default\n  ({path: controller.page_path(page)})\nend\n"
@@ -67,6 +134,19 @@ describe JSONPresentable::PresenterMethodMaker do
 
           it 'presents the correct path' do
             should eq "def json_presentable_default\n  ({user: ({url: controller.user_url(page.user)})})\nend\n"
+          end
+        end
+
+        context 'when called with any other options' do
+          let(:block) do
+            proc do
+              url_for controller: 'admin/monkeys', action: 'show', id: -> { page }, namespace: :thing
+            end
+          end
+
+          it 'presents the path by calling the url_for helper with the options, ignoring the :namespace option if present' do
+            meat = '({url: controller.url_for(:controller=>"admin/monkeys", :action=>"show", :id=>page, :only_path=>false)})'
+            should eq "def json_presentable_default\n  #{meat}\nend\n"
           end
         end
       end
@@ -134,54 +214,6 @@ describe JSONPresentable::PresenterMethodMaker do
           meat = "(page.as_json(only: [:id, :title])).merge({thing: (page.thing.as_json(only: [:id, :height])).merge({permalink: page.thing.humanize(permalink)})})"
           should eq "def json_presentable_default\n  #{meat}\nend\n"
         end
-      end
-    end
-
-    context 'when :url option is set to true' do
-      let(:block) { proc { attributes :title } }
-      subject { JSONPresentable::PresenterMethodMaker.new('page', :default, errors: false, url: true, &block).print }
-
-      it 'includes url of item as controller.url_for(page)' do
-        should eq "def json_presentable_default\n  (page.as_json(only: [:title])).merge({url: controller.url_for(page)})\nend\n"
-      end
-    end
-
-    context 'when :url option is set to a string' do
-      let(:block) { proc { attributes :title } }
-      subject { JSONPresentable::PresenterMethodMaker.new('page', :default, errors: false, url: :something_path, &block).print }
-
-      it 'includes url of item as controller.<string>(page)' do
-        should eq "def json_presentable_default\n  (page.as_json(only: [:title])).merge({url: controller.something_path(page)})\nend\n"
-      end
-    end
-
-    context 'when :url option is set for an association without block' do
-      let(:block) do
-        proc do
-          association :user, url: true
-        end
-      end
-
-      subject { JSONPresentable::PresenterMethodMaker.new('page', :default, errors: false, &block).print }
-
-      it 'includes url of item as controller.<string>(page)' do
-        should eq "def json_presentable_default\n  ({user: page.user.as_json}).merge({url: controller.url_for(page.user)})\nend\n"
-      end
-    end
-
-    context 'when :url option is set for an association WITH block' do
-      let(:block) do
-        proc do
-          association :user, url: true, errors: false do
-            attributes :id
-          end
-        end
-      end
-
-      subject { JSONPresentable::PresenterMethodMaker.new('page', :default, errors: false, &block).print }
-
-      it 'includes url of item as controller.<string>(page)' do
-        should eq "def json_presentable_default\n  ({user: (page.user.as_json(only: [:id])).merge({url: controller.url_for(page.user)})})\nend\n"
       end
     end
 

@@ -1,11 +1,10 @@
 module JSONPresentable
   class PresenterMethodMaker
-    def initialize(root, method_suffix = nil, errors: nil, url: false, &block)
+    def initialize(root, method_suffix = nil, errors: nil, &block)
       @root = root
       @method_suffix = method_suffix
       @block = block
       @errors = errors
-      @url = url
     end
 
     def print(strip_enclosure: false)
@@ -28,7 +27,7 @@ end
     end
 
     def code
-      @code ||= (code_snippets + [url_code_snippet, errors_code_snippet].compact).join('.merge')
+      @code ||= (code_snippets + [errors_code_snippet].compact).join('.merge')
     end
 
     def code_snippets
@@ -42,14 +41,6 @@ end
         "({errors: page.#{@errors}.as_json})"
       elsif @errors
         "({errors: #{@root}.errors.as_json})"
-      end
-    end
-
-    def url_code_snippet
-      if @url.is_a?(String)|| @url.is_a?(Symbol)
-        "({url: controller.#{@url}(page)})"
-      elsif @url
-        "({url: controller.url_for(#{@root})})"
       end
     end
 
@@ -67,21 +58,53 @@ end
       code_snippets << "(#{@root}.as_json#{options_for_only(args)})"
     end
 
-    def url_for(path_only: false, root: false, namespace: false)
-      path_or_url = path_only ? 'path' : 'url'
+    def not_attributes(*args)
+      code_snippets << "(#{@root}.as_json#{options_for_except(args)})"
+    end
+
+    def errors(full_messages: false, only: false, except: false, method: :errors, root: :errors)
+      method_call = "#{method}.as_json(full_messages: #{full_messages})"
+      if only
+        method_call += ".select {|k,v| #{[only].flatten.inspect}.include?(k.to_sym)}"
+      elsif except
+        method_call += ".reject {|k,v| #{[except].flatten.inspect}.include?(k.to_sym)}"
+      end
+      code_snippets << "({#{root}: #{@root}.#{method_call}})"
+    end
+
+    def url_for(only_path: false, root: false, namespace: false, **opts)
+      path_or_url = only_path ? 'path' : 'url'
       root ||= path_or_url
       prefix = namespace ? "#{namespace}_" : ''
-      method = "#{prefix}#{root_name}_#{path_or_url}"
-      code_snippets << "({#{root}: controller.#{method}(#{@root})})"
+      if opts.present?
+        method_call = "url_for(#{url_for_opts_string(opts.merge(only_path: only_path))})"
+      else
+        method_call = "#{prefix}#{root_name}_#{path_or_url}(#{@root})"
+      end
+      code_snippets << "({#{root}: controller.#{method_call}})"
+    end
+
+    def url_for_opts_string(opts)
+      result = []
+      opts.each do |k, v|
+        value = v.is_a?(Proc) ? v.to_source(strip_enclosure: true) : v.inspect
+        (result ||= []) << "#{k.inspect}=>#{value}"
+      end
+      result.join(', ')
     end
 
     def association(assoc_root_name, errors: nil, url: false, &block)
       deep_root_name = "#{@root}.#{assoc_root_name}"
       if block_given?
-        code_snippets << "({#{assoc_root_name}: #{PresenterMethodMaker.new(deep_root_name, errors: errors, url: url, &block).print(strip_enclosure: true)}})"
+        code_snippets << "({#{assoc_root_name}: #{PresenterMethodMaker.new(deep_root_name, errors: errors, &block).print(strip_enclosure: true)}})"
       else
         code_snippets << "({#{assoc_root_name}: #{@root}.#{assoc_root_name}.as_json})" + (url ? ".merge({url: controller.url_for(#{@root}.#{assoc_root_name})})" : '')
       end
+    end
+
+    def options_for_except(args)
+      raise ArgumentError, "'not_attributes' called with no arguments" if args.empty?
+      "(except: #{args.to_s})"
     end
 
     def options_for_only(args)
