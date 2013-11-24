@@ -83,26 +83,46 @@ describe JSONPresentable::ItemPresenter do
 
     describe '.mapping' do
       subject { PagePresenter.new(page, mapping: mapping).as_json }
-      let(:page) do
-        page = double 'Page', errors: errors
-        page.stub(:as_json).and_return(id: 234, title: 'My Title', content: 'lorem ipsum etc')
-        page
-      end
+      let(:page) { TestPage.new }
 
       before :all do
+        class TestModel
+          def as_json(only: [])
+            result = hash; result = result.slice(*only) unless only.empty?; result
+          end
+        end
+
+        class TestPage < TestModel
+          def hash
+            { id: 5, user_id: user.as_json[:id], title: "My Title", content: "lorem ipsum etc" }
+          end
+
+          def user
+            @user ||= TestUser.new
+          end
+        end
+
+        class TestUser < TestModel
+          def hash
+            { id: 234, username: 'johnnylaw', profile_image: 'http://cloudfront.com/path/to/image.png' }
+          end
+        end
+
         class RandomResourcesController
         end
 
         class PagePresenter < JSONPresentable::ItemPresenter
           mapping :display_only do
-            page.as_json.slice :title, :content
+            # page.as_json.slice :title, :content
+            attributes :title, :content
           end
 
           mapping :pages, :random_resources do
-            page.as_json.merge(user: {
-              username: 'johnnylaw',
-              profile_image: 'http://cloudfront.com/path/to/image.png'
-            })
+            attributes :id, :content, :title
+
+            association :user do
+              attributes :username, :profile_image
+            end
           end
         end
       end
