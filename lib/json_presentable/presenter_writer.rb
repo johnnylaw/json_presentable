@@ -1,33 +1,20 @@
 module JSONPresentable
-  class PresenterMethodMaker
-    def initialize(root, method_name: nil, errors: nil, &block)
+  class PresenterWriter
+    def initialize(root, errors: nil, &block)
       @root = root
-      @method_name = method_name
       @block = block
       @errors = errors
     end
 
     def print
       instance_eval &@block
-      @method_name ? enclose_code(code) : code
+      (code_snippets + [errors_code_snippet].compact).join('.merge')
     end
 
     private
 
     def root_name
       @root.sub /^.*\./, ''
-    end
-
-    def enclose_code(code)
-      <<-EOS
-def #{@method_name}
-  #{code}
-end
-      EOS
-    end
-
-    def code
-      @code ||= (code_snippets + [errors_code_snippet].compact).join('.merge')
     end
 
     def code_snippets
@@ -96,7 +83,7 @@ end
     def association(assoc_root_name, errors: nil, url: false, &block)
       deep_root_name = "#{@root}.#{assoc_root_name}"
       if block_given?
-        code_snippets << "({#{assoc_root_name}: #{PresenterMethodMaker.new(deep_root_name, errors: errors, &block).print}})"
+        code_snippets << "({#{assoc_root_name}: #{PresenterWriter.new(deep_root_name, errors: errors, &block).print}})"
       else
         code_snippets << "({#{assoc_root_name}: #{@root}.#{assoc_root_name}.as_json})" + (url ? ".merge({url: controller.url_for(#{@root}.#{assoc_root_name})})" : '')
       end
