@@ -1,15 +1,15 @@
 module JSONPresentable
   class PresenterMethodMaker
-    def initialize(root, method_suffix = nil, errors: nil, &block)
+    def initialize(root, method_name: nil, errors: nil, &block)
       @root = root
-      @method_suffix = method_suffix
+      @method_name = method_name
       @block = block
       @errors = errors
     end
 
-    def print(strip_enclosure: false)
+    def print
       instance_eval &@block
-      strip_enclosure ? code : enclose_code(code)
+      @method_name ? enclose_code(code) : code
     end
 
     private
@@ -20,7 +20,7 @@ module JSONPresentable
 
     def enclose_code(code)
       <<-EOS
-def json_presentable_#{@method_suffix}
+def #{@method_name}
   #{code}
 end
       EOS
@@ -96,7 +96,7 @@ end
     def association(assoc_root_name, errors: nil, url: false, &block)
       deep_root_name = "#{@root}.#{assoc_root_name}"
       if block_given?
-        code_snippets << "({#{assoc_root_name}: #{PresenterMethodMaker.new(deep_root_name, errors: errors, &block).print(strip_enclosure: true)}})"
+        code_snippets << "({#{assoc_root_name}: #{PresenterMethodMaker.new(deep_root_name, errors: errors, &block).print}})"
       else
         code_snippets << "({#{assoc_root_name}: #{@root}.#{assoc_root_name}.as_json})" + (url ? ".merge({url: controller.url_for(#{@root}.#{assoc_root_name})})" : '')
       end
