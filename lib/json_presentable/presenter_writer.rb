@@ -1,5 +1,5 @@
 module JSONPresentable
-  class PresenterMethodMaker
+  class PresenterWriter
     def initialize(root, method_name: nil, errors: nil, &block)
       @root = root
       @method_name = method_name
@@ -96,7 +96,7 @@ end
     def association(assoc_root_name, errors: nil, url: false, &block)
       deep_root_name = "#{@root}.#{assoc_root_name}"
       if block_given?
-        code_snippets << "({#{assoc_root_name}: #{PresenterMethodMaker.new(deep_root_name, errors: errors, &block).print}})"
+        code_snippets << "({#{assoc_root_name}: #{PresenterWriter.new(deep_root_name, errors: errors, &block).print}})"
       else
         code_snippets << "({#{assoc_root_name}: #{@root}.#{assoc_root_name}.as_json})" + (url ? ".merge({url: controller.url_for(#{@root}.#{assoc_root_name})})" : '')
       end

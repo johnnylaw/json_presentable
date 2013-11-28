@@ -1,9 +1,9 @@
 require 'spec_helper'
 
-describe JSONPresentable::PresenterMethodMaker do
+describe JSONPresentable::PresenterWriter do
   describe '#print' do
     context 'when errors option is false' do
-      subject { JSONPresentable::PresenterMethodMaker.new('page', method_name: '_some_map', errors: false, &block).print }
+      subject { JSONPresentable::PresenterWriter.new('page', method_name: '_some_map', errors: false, &block).print }
 
       describe '#attributes' do
         context 'when called with arguments' do
@@ -34,7 +34,7 @@ describe JSONPresentable::PresenterMethodMaker do
 
         context 'when called WITHOUT arguments' do
           let(:block) { proc { not_attributes } }
-          subject { -> { JSONPresentable::PresenterMethodMaker.new('page', method_name: '_some_map', &block).print } }
+          subject { -> { JSONPresentable::PresenterWriter.new('page', method_name: '_some_map', &block).print } }
 
           it { should raise_error(ArgumentError, "'not_attributes' called with no arguments") }
         end
@@ -170,7 +170,7 @@ describe JSONPresentable::PresenterMethodMaker do
 
         context 'when called with a multiple-key hash argument (nonsense to API)' do
           let(:block) { proc { property permalink: :something, user_id: :something } }
-          subject { -> { JSONPresentable::PresenterMethodMaker.new('page', method_name: '_some_map', &block).print } }
+          subject { -> { JSONPresentable::PresenterWriter.new('page', method_name: '_some_map', &block).print } }
           it { should raise_error(ArgumentError, "'attribute' called with bad argument") }
         end
       end
@@ -219,7 +219,7 @@ describe JSONPresentable::PresenterMethodMaker do
 
     context 'when :errors option is true' do
       let(:block) { proc { attributes :title } }
-      subject { JSONPresentable::PresenterMethodMaker.new('page', method_name: '_some_map', errors: true, &block).print }
+      subject { JSONPresentable::PresenterWriter.new('page', method_name: '_some_map', errors: true, &block).print }
 
       it 'writes errors into method' do
         should eq "def _some_map\n  (page.as_json(only: [:title])).merge({errors: page.errors.as_json})\nend\n"
@@ -228,7 +228,7 @@ describe JSONPresentable::PresenterMethodMaker do
 
     context 'when errors option is not set at all' do
       let(:block) { proc { attributes :title } }
-      subject { JSONPresentable::PresenterMethodMaker.new('page', method_name: '_some_map', &block).print }
+      subject { JSONPresentable::PresenterWriter.new('page', method_name: '_some_map', &block).print }
 
       it 'writes a respond_to? check and errors into method' do
         should eq "def _some_map\n  (page.as_json(only: [:title])).merge(page.respond_to?(:errors) ? {errors: page.errors.as_json} : {})\nend\n"
@@ -237,7 +237,7 @@ describe JSONPresentable::PresenterMethodMaker do
 
     context 'when errors option is set to a string or symbol' do
       let(:block) { proc { attributes :title } }
-      subject { JSONPresentable::PresenterMethodMaker.new('page', method_name: '_some_map', errors: 'issues(14)', &block).print }
+      subject { JSONPresentable::PresenterWriter.new('page', method_name: '_some_map', errors: 'issues(14)', &block).print }
 
       it 'writes errors key into method output by calling method as specified in string or symbol' do
         should eq "def _some_map\n  (page.as_json(only: [:title])).merge({errors: page.issues(14).as_json})\nend\n"
