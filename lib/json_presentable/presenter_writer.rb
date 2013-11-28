@@ -1,10 +1,11 @@
 module JSONPresentable
   class PresenterWriter
-    def initialize(root, method_name: nil, errors: nil, &block)
+    def initialize(root, method_name: nil, include_maps: nil, errors: nil, &block)
       @root = root
       @method_name = method_name
       @block = block
       @errors = errors
+      @include_maps = [include_maps].flatten.compact
     end
 
     def print
@@ -31,7 +32,7 @@ end
     end
 
     def code_snippets
-      @code_snippets ||= []
+      @code_snippets ||= @include_maps.map{ |m| "(#{m})" }
     end
 
     def errors_code_snippet

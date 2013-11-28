@@ -217,6 +217,27 @@ describe JSONPresentable::PresenterWriter do
       end
     end
 
+    context 'when :include_maps option is set' do
+      let(:block) { proc { attributes :title } }
+      subject { JSONPresentable::PresenterWriter.new('page', method_name: '_some_map', include_maps: included_maps, errors: false, &block).print }
+
+      context 'with a single argument' do
+        let(:included_maps) { '_blah_map' }
+
+        it 'merges its code into the map given' do
+          should eq "def _some_map\n  (_blah_map).merge(page.as_json(only: [:title]))\nend\n"
+        end
+      end
+
+      context 'with an array of arguments' do
+        let(:included_maps) { ['__map', '_blah_map'] }
+
+        it 'merges its code into the map given' do
+          should eq "def _some_map\n  (__map).merge(_blah_map).merge(page.as_json(only: [:title]))\nend\n"
+        end
+      end
+    end
+
     context 'when :errors option is true' do
       let(:block) { proc { attributes :title } }
       subject { JSONPresentable::PresenterWriter.new('page', method_name: '_some_map', errors: true, &block).print }
